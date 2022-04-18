@@ -14,7 +14,8 @@ from tools.codegen.api.autograd import (Derivative, DifferentiabilityInfo,
 from tools.codegen.api.types import (Binding, BaseCType, OptionalCType, tensorT, longT,
                                      doubleT, scalarT, stringT, boolT, intArrayRefT,
                                      tensorListT, MutRefCType, ListCType, ArrayRefCType,
-                                     optionalIntArrayRefT, iTensorListRefT, TENSOR_LIST_LIKE_CTYPES)
+                                     optionalIntArrayRefT, iTensorListRefT, iOptTensorListRefT,
+                                     TENSOR_LIST_LIKE_CTYPES)
 from tools.codegen.code_template import CodeTemplate
 from tools.codegen.utils import FileManager
 from tools.codegen.model import Argument
@@ -405,7 +406,7 @@ def process_function(info: DifferentiabilityInfo, template: CodeTemplate) -> str
             getter_definitions.append(GETTER_DEFINITION_RAW_VEC_SAVEDVAR.substitute(
                 op=info.op, name=name, body=GETTER_BODY_RAW_VEC_SAVEDVAR))
             should_append_raw_getsetdef = True
-        elif type == ListCType(OptionalCType(BaseCType(tensorT))):
+        elif type == ListCType(OptionalCType(BaseCType(tensorT))) or type == BaseCType(iOptTensorListRefT):
             saved_variables.append(f'std::vector<SavedVariable> {name}_;')
             saved_variables.append(f'bool {name}_released_ = false;')
             # Just clear() is sufficient, we don't need to loop and clear each variable.

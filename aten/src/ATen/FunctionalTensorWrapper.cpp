@@ -261,11 +261,14 @@ c10::List<Tensor> from_functional_tensor(ITensorListRef t_list) {
   }
   return outputs;
 }
-c10::List<c10::optional<Tensor>> from_functional_tensor(const c10::List<c10::optional<Tensor>>& t_list) {
+c10::List<c10::optional<Tensor>> from_functional_tensor(IOptTensorListRef t_list) {
   c10::List<c10::optional<Tensor>> outputs;
   outputs.reserve(t_list.size());
-  for (const auto i : c10::irange(t_list.size())) {
-    outputs.push_back(from_functional_tensor(t_list[i]));
+  for (const auto& opt_tensor : t_list) {
+    auto opt = (opt_tensor.has_value())
+        ? c10::optional<Tensor>(from_functional_tensor(*opt_tensor))
+        : c10::nullopt;
+    outputs.push_back(opt);
   }
   return outputs;
 }
@@ -297,9 +300,11 @@ void sync(ITensorListRef t_list) {
     sync(t);
   }
 }
-void sync(const c10::List<c10::optional<Tensor>> t_list) {
-  for (const auto i : c10::irange(t_list.size())) {
-    sync(t_list[i]);
+void sync(IOptTensorListRef t_list) {
+  for (const auto& tensor : t_list) {
+    if (tensor.has_value()) {
+      sync(*tensor);
+    }
   }
 }
 
@@ -315,20 +320,19 @@ bool isFunctionalTensor(const c10::optional<Tensor>& t) {
   }
 }
 
-bool isFunctionalTensor(const c10::List<c10::optional<Tensor>>& t_list) {
-  if (t_list.size() == 0) return false;
-  bool any_functional = isFunctionalTensor(t_list[0]);
-  for (const auto i : c10::irange(1, t_list.size())) {
-    auto curr_functional = isFunctionalTensor(t_list[i]);
-    TORCH_INTERNAL_ASSERT(
-         curr_functional == any_functional,
-        "Functionalization encountered a list of tensors where some are functional",
-        "and some are not, which is not currently unsupported.");
+bool isFunctionalTensor(OptionalTensorRef t) {
+  if (t.has_value()) {
+    return isFunctionalTensor(*t);
+  } else {
+    return false;
   }
-  return any_functional;
 }
 
 bool isFunctionalTensor(ITensorListRef list) {
+  return isFunctionalTensorIListRef(list);
+}
+
+bool isFunctionalTensor(IOptTensorListRef list) {
   return isFunctionalTensorIListRef(list);
 }
 

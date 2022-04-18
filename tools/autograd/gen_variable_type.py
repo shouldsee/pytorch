@@ -38,7 +38,7 @@ from .gen_inplace_or_view_type import (
 )
 
 from tools.codegen.api.types import (Binding, DispatcherSignature, BaseCType, TENSOR_LIST_LIKE_CTYPES, intArrayRefT,
-                                     tensorT, tensorListT, iTensorListRefT, MutRefCType, OptionalCType,
+                                     tensorT, tensorListT, iTensorListRefT, iOptTensorListRefT, MutRefCType, OptionalCType,
                                      ListCType, SpecialArgName, scalarT, stringT,
                                      VectorCType)
 from tools.codegen.api.autograd import (
@@ -170,9 +170,18 @@ for (size_t i=0; i<${tensorlist_name}.size(); i++) {
 }
 """)
 
+# See [Note: IOptTensorListRef]
+# Materialize the tensor list once before using.
+MATERIALIZE_OPTIONALTENSORLIST = CodeTemplate("""\
+auto ${tensorlist_name}_materialized = ${tensorlist_name}.materialize();
+""")
+
+# See [Note: IOptTensorListRef]
+# 'cpp_list_type' is needed here for supporting code generation using
+# both 'IOptTensorListRef' and 'List<optional<Tensor>>' types.
 SAVE_OPTIONALTENSORLIST_STORAGE = CodeTemplate("""\
 std::vector<c10::optional<Storage>> ${tensorlist_name}_storage_saved(${tensorlist_name}.size());
-for (const c10::optional<Tensor>& tensor : ${tensorlist_name})
+for (const typename ${cpp_list_type}::value_type& tensor : ${tensorlist_name})
   ${tensorlist_name}_storage_saved.push_back(
     tensor.has_value() && tensor->has_storage() ? c10::optional<Storage>(tensor->storage()) : c10::nullopt);
 """)
@@ -181,7 +190,7 @@ ENFORCE_SAME_OPTIONALTENSORLIST_STORAGE = CodeTemplate("""\
 for (size_t i=0; i<${tensorlist_name}.size(); i++) {
   if (${tensorlist_name}_storage_saved[i].has_value())
     AT_ASSERT(${tensorlist_name}_storage_saved[i].value().is_alias_of(
-        static_cast<c10::optional<Tensor>>(${tensorlist_name}[i])->storage()));
+        ${tensorlist_name}[i]->storage()));
 }
 """)
 
@@ -218,15 +227,15 @@ for (size_t i=0; i<${tensorlist_name}.size(); i++) {
 SAVE_OPTIONALTENSORLIST_IMPL = CodeTemplate("""\
 std::vector<c10::intrusive_ptr<TensorImpl>> ${tensorlist_name}_impl_saved(${tensorlist_name}.size());
 for (size_t i=0; i<${tensorlist_name}.size(); i++) {
-  c10::optional<Tensor> t = ${tensorlist_name}[i];
-  if (t.has_value() && t->defined()) ${tensorlist_name}_impl_saved[i] = t->getIntrusivePtr();
+  auto& t = ${tensorlist_name}[i];
+  if (t.has_value() && t.defined()) ${tensorlist_name}_impl_saved[i] = t->getIntrusivePtr();
 }
 """)
 
 ENFORCE_SAME_OPTIONALTENSORLIST_IMPL = CodeTemplate("""\
 for (size_t i=0; i<${tensorlist_name}.size(); i++) {
   if (${tensorlist_name}_impl_saved[i])
-    AT_ASSERT(${tensorlist_name}_impl_saved[i] == static_cast<c10::optional<Tensor>>(${tensorlist_name}[i])->getIntrusivePtr());
+    AT_ASSERT(${tensorlist_name}_impl_saved[i] == ${tensorlist_name}[i]->getIntrusivePtr());
 }
 """)
 
@@ -697,7 +706,7 @@ def emit_body(fn: NativeFunctionWithDifferentiabilityInfo) -> List[str]:
                 else:
                     expr = f'SavedVariable({var}, {str(is_output).lower()})'
             elif type == BaseCType(tensorListT) or type == ListCType(OptionalCType(BaseCType(tensorT))) or \
-                    type == BaseCType(iTensorListRefT):
+                    type == BaseCType(iTensorListRefT) or type == BaseCType(iOptTensorListRefT):
                 expr = f'make_saved_variable_list({name})'
                 name += '_'
             elif type == BaseCType(intArrayRefT):
@@ -774,11 +783,17 @@ def emit_body(fn: NativeFunctionWithDifferentiabilityInfo) -> List[str]:
                                       SAVE_TENSORLIST_IMPL.substitute(tensorlist_name=tensorlist_name)]
                 stmts_after_call += [ENFORCE_SAME_TENSORLIST_STORAGE.substitute(tensorlist_name=tensorlist_name),
                                      ENFORCE_SAME_TENSORLIST_IMPL.substitute(tensorlist_name=tensorlist_name)]
-            elif noref_cpp_type == ListCType(OptionalCType(BaseCType(tensorT))):
-                stmts_before_call += [SAVE_OPTIONALTENSORLIST_STORAGE.substitute(tensorlist_name=arg),
-                                      SAVE_OPTIONALTENSORLIST_IMPL.substitute(tensorlist_name=arg)]
-                stmts_after_call += [ENFORCE_SAME_OPTIONALTENSORLIST_STORAGE.substitute(tensorlist_name=arg),
-                                     ENFORCE_SAME_OPTIONALTENSORLIST_IMPL.substitute(tensorlist_name=arg)]
+            elif noref_cpp_type == ListCType(OptionalCType(BaseCType(tensorT))) or noref_cpp_type == BaseCType(iOptTensorListRefT):
+                if noref_cpp_type == BaseCType(iOptTensorListRefT):
+                    stmts_before_call += [MATERIALIZE_OPTIONALTENSORLIST.substitute(tensorlist_name=arg)]
+                    tensorlist_name = f"{arg}_materialized"
+                else:
+                    tensorlist_name = arg
+                stmts_before_call += [SAVE_OPTIONALTENSORLIST_STORAGE.substitute(tensorlist_name=tensorlist_name,
+                                                                                 cpp_list_type=noref_cpp_type),
+                                      SAVE_OPTIONALTENSORLIST_IMPL.substitute(tensorlist_name=tensorlist_name)]
+                stmts_after_call += [ENFORCE_SAME_OPTIONALTENSORLIST_STORAGE.substitute(tensorlist_name=tensorlist_name),
+                                     ENFORCE_SAME_OPTIONALTENSORLIST_IMPL.substitute(tensorlist_name=tensorlist_name)]
             elif noref_cpp_type == BaseCType(tensorT):
                 stmts_before_call += [SAVE_TENSOR_STORAGE.substitute(tensor_name=arg),
                                       SAVE_TENSOR_IMPL.substitute(tensor_name=arg)]

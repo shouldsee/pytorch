@@ -7,7 +7,7 @@ from tools.codegen.api.types import (ArgName, BaseCType, Binding, ConstRefCType,
                                      OptionalCType, TupleCType, SpecialArgName, boolT, scalarT,
                                      tensorListT, dimnameListT, tensorT, voidT, longT,
                                      BaseTypeToCppMapping, intArrayRefT, optionalIntArrayRefT,
-                                     tensorOptionsT, iTensorListRefT)
+                                     tensorOptionsT, iTensorListRefT, iOptTensorListRefT)
 from tools.codegen import local
 from tools.codegen.utils import assert_never
 from typing import Optional, Sequence, Union, List, Set
@@ -121,7 +121,10 @@ def argumenttype_type(
         elif str(t.elem) == 'Dimname':
             return NamedCType(binds, BaseCType(dimnameListT))
         elif str(t.elem) == 'Tensor?':
-            return NamedCType(binds, ConstRefCType(ListCType(OptionalCType(BaseCType(tensorT)))))
+            if structured_type_override:
+                return NamedCType(binds, ConstRefCType(BaseCType(iOptTensorListRefT)))
+            else:
+                return NamedCType(binds, ConstRefCType(ListCType(OptionalCType(BaseCType(tensorT)))))
         elem = argumenttype_type(t.elem, mutable=mutable, binds=binds, structured_type_override=structured_type_override)
         return NamedCType(binds, ArrayRefCType(elem.type))
     else:

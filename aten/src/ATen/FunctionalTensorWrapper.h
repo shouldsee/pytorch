@@ -119,8 +119,9 @@ TORCH_API inline FunctionalTensorWrapper* unsafeGetFunctionalWrapper(const Tenso
 
 TORCH_API bool isFunctionalTensor(const at::Tensor& tensor);
 TORCH_API bool isFunctionalTensor(const c10::optional<Tensor>& t);
-TORCH_API bool isFunctionalTensor(const c10::List<c10::optional<Tensor>>& t_list);
+TORCH_API bool isFunctionalTensor(OptionalTensorRef t);
 TORCH_API bool isFunctionalTensor(ITensorListRef list);
+TORCH_API bool isFunctionalTensor(IOptTensorListRef list);
 
 template <typename T>
 bool isFunctionalTensorIListRef(c10::IListRef<T> list);
@@ -130,14 +131,14 @@ TORCH_API c10::List<Tensor> to_functional_tensor(ITensorListRef t_list);
 
 TORCH_API Tensor from_functional_tensor(const Tensor& tensor);
 TORCH_API c10::optional<Tensor> from_functional_tensor(const c10::optional<Tensor>& t);
-TORCH_API c10::List<c10::optional<Tensor>> from_functional_tensor(const c10::List<c10::optional<Tensor>>& t_list);
 TORCH_API std::vector<Tensor> from_functional_tensor(TensorList t_list);
 TORCH_API c10::List<Tensor> from_functional_tensor(ITensorListRef t_list);
+TORCH_API c10::List<c10::optional<Tensor>> from_functional_tensor(IOptTensorListRef t_list);
 
 TORCH_API void sync(const at::Tensor& t);
 TORCH_API void sync(const c10::optional<Tensor>& t);
-TORCH_API void sync(const c10::List<c10::optional<Tensor>> t_list);
 TORCH_API void sync(ITensorListRef t_list);
+TORCH_API void sync(IOptTensorListRef t_list);
 
 Tensor create_functional_tensor_with_view_meta(const Tensor& view_to_wrap, const Tensor& base, functionalization::ViewMeta meta, int64_t out_idx = 0);
 std::vector<Tensor> create_functional_tensor_with_view_meta(ITensorListRef view_to_wrap, const Tensor& base, functionalization::ViewMeta meta);
