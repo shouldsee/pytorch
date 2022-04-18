@@ -11050,6 +11050,10 @@ op_db: List[OpInfo] = [
            assert_autodiffed=True,
            supports_forward_ad=True,
            supports_out=False),
+    # TODO (tugsbayasgalan) We don't test for out variants
+    # as out variant tests assume they should work for all
+    # tensors. But, underlying implementation of softmax.int_out
+    # doesn't support non-contiguous tensors.
     OpInfo('softmax',
            aliases=('special.softmax', 'nn.functional.softmax',),
            variant_test_name="with_dtype",
