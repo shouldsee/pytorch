@@ -4721,18 +4721,19 @@ Tensor lu_unpack_backward(
   return res;
 }
 
-Tensor cat_jvp(at::TensorList tensors, int64_t dim) {
+Tensor cat_jvp(at::ITensorListRef tensors, int64_t dim) {
   Tensor out_fw_grad;
 
+  auto materialized = tensors.materialize();
   auto any_defined = false;
-  for (const auto& t: tensors) {
+  for (const Tensor& t : materialized) {
     any_defined |= isFwGradDefined(t);
   }
 
   if (any_defined) {
     std::vector<Tensor> fw_grads;
 
-    for (auto& t: tensors) {
+  for (const Tensor& t : materialized) {
       fw_grads.push_back(isFwGradDefined(t)? t._fw_grad(/*level*/ 0): at::zeros_like(t));
     }
 

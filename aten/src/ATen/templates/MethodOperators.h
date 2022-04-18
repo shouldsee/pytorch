@@ -19,6 +19,8 @@ template<typename T>
 class optional;
 template<typename T>
 class List;
+template<typename T>
+class IListRef;
 class Stream;
 class Scalar;
 struct Storage;
@@ -32,6 +34,7 @@ class Tensor;
 struct Dimname;
 struct Generator;
 using TensorList = c10::ArrayRef<Tensor>;
+using ITensorList = c10::IListRef<Tensor>;
 using DimnameList = c10::ArrayRef<Dimname>;
 using c10::Stream;
 using c10::Storage;

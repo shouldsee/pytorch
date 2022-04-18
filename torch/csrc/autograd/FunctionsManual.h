@@ -460,7 +460,7 @@ Tensor _convolution_jvp(
 
 Tensor convolution_backward_jvp_grad_bias(const Tensor& grad_out_t, const Tensor& grad_bias);
 
-Tensor cat_jvp(at::TensorList tensors, int64_t dim);
+Tensor cat_jvp(at::ITensorListRef tensors, int64_t dim);
 Tensor stack_jvp(at::TensorList tensors, int64_t dim);
 Tensor cumprod_jvp(Tensor self_t, Tensor self_p, Tensor result, int dim);
 Tensor gather_with_keepdimed_indices(const Tensor& input, int64_t dim, const Tensor& indices, bool keepdim);

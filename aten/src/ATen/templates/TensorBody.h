@@ -40,6 +40,7 @@
 
 namespace c10{
 template<class T> class List;
+template<class T> class IListRef;
 }
 namespace at {
 struct Generator;
@@ -64,6 +65,7 @@ namespace at {
 class OptionalTensorRef;
 class Tensor;
 using TensorList = ArrayRef<Tensor>;
+using ITensorList = c10::IListRef<Tensor>;
 
 using Stream = c10::Stream;
 
